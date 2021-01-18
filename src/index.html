@@ -13,7 +13,7 @@
   <div>
     <div class = "write-card">
       <textarea id = "write-field"></textarea>
-      <button type = "button" class = "btn btn-primary" id = "publish">
+      <button type = "button" class = "btn btn-primary" id = "publish" onclick = "post()">
         Publish <span class = "badge bg-secondary" id = "post-length">0</span>
       </button>
     </div>
@@ -24,6 +24,7 @@
   <script src="https://cdn.jsdelivr.net/npm/dompurify"></script>
   <script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cids"></script>
   <script src="me.js" ></script>
   <script>
     const ipfs = window.IpfsHttpClient('http://localhost:5001');
@@ -53,6 +54,15 @@
     {
       insert_all(subscription);
     }
+    insert_self(me);
+    async function insert_self(me)
+    {
+      for (const post of me.posts)
+      {
+        var file = await fetch('./posts/' + post).then(response => response.text());
+        document.getElementById('timeline').innerHTML += make_post(render(await file), me, "#");
+      }
+    }
     async function insert_all(ipfsPath)
     {
       var decoder = new TextDecoder('utf-8');
@@ -61,7 +71,7 @@
         profile += decoder.decode(chunk);
       }
       var followed_profile = JSON.parse(profile.replace("var me = ", ""));
-      for await (const file of ipfs.ls(ipfsPath)) {
+      for await (const file of ipfs.ls(ipfsPath + "/posts/")) {
         if (file.path.endsWith(".md") || file.path.endsWith(".markdown"))
         {
           insert(decoder, file.path, followed_profile, ipfsPath);
@@ -75,7 +85,7 @@
         for await (const chunk of ipfs_file.content) {
           file += decoder.decode(chunk);
         }
-        document.getElementById('timeline').innerHTML += make_post(render(file), followed_profile, root);
+        document.getElementById('timeline').innerHTML += make_post(render(file), followed_profile, "ipfs://" + root + "/index.html");
       }
     }
     function make_post(content, followed_profile, root)
@@ -110,6 +120,62 @@
     function render(text)
     {
       return DOMPurify.sanitize(marked(text), {ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|ipfs|mailto|tel|callto|cid|xmpp|xxx):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i}, {USE_PROFILES: {html: true, mathMl: true, svg: true, svgFilters: true}});
+    }
+    async function post()
+    {
+      var new_index;
+      var new_post_id = generateId(20) + '.md';
+      me.posts.push(new_post_id);
+
+      const files = [
+        {
+          path: 'ephyra/posts/' + new_post_id,
+          content: editor.value()
+        },
+        {
+          path: 'ephyra/me.js',
+          content: 'var me = ' + JSON.stringify(me)
+        },
+        {
+          path: 'ephyra/index.html',
+          content: await fetch('./index.html').then(response => response.text())
+        },
+        {
+          path: 'ephyra/base.css',
+          content: await fetch('./base.css').then(response => response.text())
+        },
+        {
+          path: 'ephyra/custom.css',
+          content: await fetch('./custom.css').then(response => response.text())
+        }
+      ];
+
+      console.log(await files);
+
+      for await (const result of ipfs.addAll(await files,
+        {
+          cidVersion: 1
+        })) {
+        console.log(result);
+        if (result.path == 'ephyra')
+        {
+          new_index = result.cid.string + "/index.html";
+        }
+      }
+
+      editor.value("");
+
+      console.log("ipfs://" + new_index);
+      window.location.replace("ipfs://" + new_index);
+    }
+    function dec2hex (dec) {
+      return dec.toString(16).padStart(2, "0")
+    }
+
+    function generateId (len) {
+      var arr = new Uint8Array((len || 40) / 2)
+      window.crypto.getRandomValues(arr)
+      return Array.from(arr, dec2hex).join('')
     }
   </script>
 </body>
