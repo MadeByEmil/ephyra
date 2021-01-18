@@ -6,7 +6,7 @@
 a {
     cursor: default;
     text-decoration: none;
-    color: rgb(255,59,48);
+    color: rgb(0,122,255);
 }
 
 body {
@@ -111,10 +111,6 @@ p {
   position: sticky;
 }
 
-.post-metadata a {
-  color: rgb(0,122,255);
-}
-
 .post-content {
   display: block;
   margin-top: 1rem;
@@ -129,5 +125,16 @@ p {
 div#profile {
   margin-top: 25%;
   width: max-content;
-  margin-right: auto;
+  margin-right: 10%;
+  margin-left: 10%;
+}
+
+.write-card {
+    margin: 2rem;
+    margin-top: 7rem;
+    margin-bottom: 6rem;
+}
+
+button#publish {
+  float: right;
 }
